@@ -6,12 +6,12 @@ function DashboardPage() {
   const [tasks, setTasks] = useState([])
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [dueDate, setDueDate] = useState('')
   const [loading, setLoading] = useState(false)
+  const [filter, setFilter] = useState('all')
   const navigate = useNavigate()
 
-  useEffect(() => {
-    fetchTasks()
-  }, [])
+  useEffect(() => { fetchTasks() }, [])
 
   const fetchTasks = async () => {
     try {
@@ -26,10 +26,15 @@ function DashboardPage() {
     if (!title) return
     setLoading(true)
     try {
-      const res = await axiosClient.post('/tasks/', { title, description })
+      const res = await axiosClient.post('/tasks/', {
+        title,
+        description,
+        due_date: dueDate || null
+      })
       setTasks([...tasks, res.data])
       setTitle('')
       setDescription('')
+      setDueDate('')
     } catch (err) {
       alert('Failed to create task')
     } finally {
@@ -61,87 +66,99 @@ function DashboardPage() {
     navigate('/')
   }
 
+  const filteredTasks = tasks.filter(task => {
+    if (filter === 'todo') return task.status === 'todo'
+    if (filter === 'done') return task.status === 'done'
+    return true
+  })
+
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>My Tasks</h2>
-        <button style={styles.logoutBtn} onClick={handleLogout}>Logout</button>
+    <div className="min-h-screen bg-gray-100">
+      <div className="bg-indigo-600 text-white px-8 py-4 flex justify-between items-center shadow">
+        <h1 className="text-xl font-bold">Task Manager</h1>
+        <button onClick={handleLogout} className="bg-white text-indigo-600 px-4 py-2 rounded-lg font-medium hover:bg-indigo-50 transition">Logout</button>
       </div>
 
-      <div style={styles.form}>
-        <input
-          style={styles.input}
-          type="text"
-          placeholder="Task title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <input
-          style={styles.input}
-          type="text"
-          placeholder="Description (optional)"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-        <button style={styles.addBtn} onClick={createTask} disabled={loading}>
-          {loading ? 'Adding...' : 'Add Task'}
-        </button>
-      </div>
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        <div className="bg-white rounded-2xl shadow p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">Add New Task</h2>
+          <input
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 mb-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            type="text"
+            placeholder="Task title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <input
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 mb-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            type="text"
+            placeholder="Description (optional)"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+          <input
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+          />
+          <button
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition"
+            onClick={createTask}
+            disabled={loading}
+          >
+            {loading ? 'Adding...' : 'Add Task'}
+          </button>
+        </div>
 
-      <div style={styles.taskList}>
-        {tasks.length === 0 && <p style={styles.empty}>No tasks yet. Add one above!</p>}
-        {tasks.map(task => (
-          <div key={task.id} style={styles.taskCard}>
-            <div style={styles.taskInfo}>
-              <p style={{
-                ...styles.taskTitle,
-                textDecoration: task.status === 'done' ? 'line-through' : 'none',
-                color: task.status === 'done' ? '#999' : '#333'
-              }}>
-                {task.title}
-              </p>
-              {task.description && <p style={styles.taskDesc}>{task.description}</p>}
-              <span style={{
-                ...styles.badge,
-                background: task.status === 'done' ? '#d1fae5' : '#e0e7ff',
-                color: task.status === 'done' ? '#065f46' : '#3730a3'
-              }}>
-                {task.status}
-              </span>
+        <div className="flex gap-3 mb-6">
+          {['all', 'todo', 'done'].map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition ${filter === f ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-300 hover:bg-indigo-50'}`}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)} ({f === 'all' ? tasks.length : tasks.filter(t => t.status === f).length})
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-4">
+          {filteredTasks.length === 0 && (
+            <p className="text-center text-gray-400 mt-10">No tasks here. Add one above!</p>
+          )}
+          {filteredTasks.map(task => (
+            <div key={task.id} className="bg-white rounded-2xl shadow px-6 py-4 flex justify-between items-center">
+              <div className="flex-1">
+                <p className={`font-medium text-base ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                  {task.title}
+                </p>
+                {task.description && <p className="text-sm text-gray-500 mt-1">{task.description}</p>}
+                {task.due_date && <p className="text-xs text-gray-400 mt-1">Due: {task.due_date}</p>}
+                <span className={`text-xs px-3 py-1 rounded-full font-medium mt-2 inline-block ${task.status === 'done' ? 'bg-green-100 text-green-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                  {task.status}
+                </span>
+              </div>
+              <div className="flex gap-2 ml-4">
+                <button
+                  onClick={() => toggleStatus(task)}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-3 py-2 rounded-lg transition"
+                >
+                  {task.status === 'todo' ? 'Mark Done' : 'Undo'}
+                </button>
+                <button
+                  onClick={() => deleteTask(task.id)}
+                  className="bg-red-500 hover:bg-red-600 text-white text-sm px-3 py-2 rounded-lg transition"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
-            <div style={styles.taskActions}>
-              <button style={styles.doneBtn} onClick={() => toggleStatus(task)}>
-                {task.status === 'todo' ? 'Mark Done' : 'Undo'}
-              </button>
-              <button style={styles.deleteBtn} onClick={() => deleteTask(task.id)}>
-                Delete
-              </button>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   )
-}
-
-const styles = {
-  container: { maxWidth: '700px', margin: '0 auto', padding: '32px 16px' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' },
-  title: { fontSize: '24px', color: '#333' },
-  logoutBtn: { padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' },
-  form: { background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: '24px' },
-  input: { width: '100%', padding: '10px', marginBottom: '12px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '14px', boxSizing: 'border-box' },
-  addBtn: { width: '100%', padding: '10px', background: '#4f46e5', color: 'white', border: 'none', borderRadius: '8px', fontSize: '15px', cursor: 'pointer' },
-  taskList: { display: 'flex', flexDirection: 'column', gap: '12px' },
-  empty: { textAlign: 'center', color: '#999', marginTop: '40px' },
-  taskCard: { background: 'white', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  taskInfo: { flex: 1 },
-  taskTitle: { fontSize: '16px', fontWeight: '500', marginBottom: '4px' },
-  taskDesc: { fontSize: '13px', color: '#666', marginBottom: '6px' },
-  badge: { fontSize: '12px', padding: '2px 10px', borderRadius: '20px', fontWeight: '500' },
-  taskActions: { display: 'flex', gap: '8px', marginLeft: '16px' },
-  doneBtn: { padding: '6px 12px', background: '#4f46e5', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' },
-  deleteBtn: { padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }
 }
 
 export default DashboardPage
